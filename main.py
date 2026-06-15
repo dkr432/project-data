@@ -3,71 +3,80 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Streamlit 페이지 레이아웃 및 제목 설정
-st.set_page_config(page_title="모로코 강수량 분석", page_icon="🇲🇦", layout="centered")
+# ===== 페이지 기본 설정 =====
+st.set_page_config(page_title="모로코 강수량 분석", page_icon="🌧️", layout="wide")
 
-st.title("🇲🇦 모로코 연간 강수량 및 추세 분석")
-st.markdown("""
-이 대시보드는 `average-precipitation-per-year.csv` 데이터를 바탕으로 
-**모로코(Morocco)**의 연간 강수량 변화 흐름과 장기 추세선을 시각화하여 보여줍니다.
-""")
+st.title("🌧️ 모로코(Morocco) 연간 강수량 추세 분석")
+st.write("1940년부터 2025년까지 모로코의 연간 강수량 변화와 추세선을 분석합니다.")
 
-# 데이터 불러오기 함수 (캐싱을 통해 속도 향상)
+# ===== 데이터 불러오기 (캐싱) =====
 @st.cache_data
 def load_data():
-    # 원본 파일명을 그대로 읽어옵니다.
-    return pd.read_csv('average-precipitation-per-year.csv')
+    df = pd.read_csv('average-precipitation-per-year.csv')
+    return df
 
 try:
     df = load_data()
-    
-    # 1. 모로코(Morocco) 데이터 필터링 및 정렬
-    morocco_df = df[df['Entity'] == 'Morocco'].sort_values(by='Year')
-    
-    if not morocco_df.empty:
-        years = morocco_df['Year'].values
-        precipitation = morocco_df['Annual precipitation'].values
-        
-        # 2. 추세선(Linear Regression) 계산
-        # 1차 방정식(y = ax + b)의 기울기(a)와 y절편(b) 구하기
-        slope, intercept = np.polyfit(years, precipitation, 1)
-        trend_line = slope * years + intercept
-        
-        # 3. 주요 지표(Metric) 화면 표시
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(label="전체 평균 강수량", value=f"{precipitation.mean():.2f} mm")
-        with col2:
-            # 기울기 방향에 따라 감소/증가 추세 표시
-            if slope < 0:
-                st.metric(label="연간 변화량 (기울기)", value=f"{slope:.4f} mm/년", delta="감소 추세", delta_color="inverse")
-            else:
-                st.metric(label="연간 변화량 (기울기)", value=f"{slope:.4f} mm/년", delta="증가 추세")
-                
-        # 4. Matplotlib를 활용한 선그래프와 추세선 시각화
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
-        # 실제 연도별 강수량 선그래프
-        ax.plot(years, precipitation, marker='o', linestyle='-', color='#1f77b4', alpha=0.7, label='Annual Precipitation')
-        # 빨간색 점선 추세선
-        ax.plot(years, trend_line, color='red', linestyle='--', linewidth=2, label=f'Trend Line (Slope: {slope:.3f})')
-        
-        # 그래프 스타일 설정
-        ax.set_title("Morocco Annual Precipitation Trend (1940-2025)", fontsize=14, pad=15)
-        ax.set_xlabel("Year (연도)", fontsize=11)
-        ax.set_ylabel("Precipitation (강수량, mm)", fontsize=11)
-        ax.grid(True, linestyle=':', alpha=0.6)
-        ax.legend()
-        
-        # 스트림릿 웹페이지에 그래프 출력
-        st.pyplot(fig)
-        
-        # 5. 원본 데이터 표 토글 기능
-        with st.expander("🇲🇦 모로코 연도별 강수량 원본 데이터 확인하기"):
-            st.dataframe(morocco_df[['Year', 'Annual precipitation']].reset_index(drop=True))
-            
+
+    # ===== 모로코 데이터만 필터링 =====
+    morocco = df[df['Entity'] == 'Morocco'].sort_values('Year')
+
+    if morocco.empty:
+        st.error("데이터에서 'Morocco'를 찾을 수 없어요. CSV 파일을 확인해주세요.")
     else:
-        st.error("데이터에서 'Morocco'에 해당하는 행을 찾을 수 없습니다. CSV 파일의 Entity 컬럼을 확인해주세요.")
+        years = morocco['Year'].values
+        precip = morocco['Annual precipitation'].values
+
+        # ===== 추세선 계산 (1차 직선) =====
+        slope, intercept = np.polyfit(years, precip, 1)
+        trend = slope * years + intercept
+
+        # ===== 앞/뒤 절반 평균 비교 =====
+        mid = years[len(years) // 2]
+        first_half = precip[years < mid].mean()
+        second_half = precip[years >= mid].mean()
+        change_percent = (second_half - first_half) / first_half * 100
+
+        # ===== 주요 지표 표시 =====
+        col1, col2, col3 = st.columns(3)
+        col1.metric("전체 평균 강수량", f"{precip.mean():.1f} mm")
+        col2.metric("연간 변화율(기울기)", f"{slope:.3f} mm/년",
+                    "감소 추세" if slope < 0 else "증가 추세",
+                    delta_color="inverse" if slope < 0 else "normal")
+        col3.metric("전반부 대비 변화", f"{change_percent:.1f} %")
+
+        # ===== 그래프 그리기 =====
+        fig, ax = plt.subplots(figsize=(11, 5))
+
+        # 실제 강수량 선그래프
+        ax.plot(years, precip, marker='o', markersize=4, linewidth=1.5,
+                color='#2E86C1', alpha=0.8, label='Annual Precipitation')
+
+        # 추세선 (빨간 점선)
+        ax.plot(years, trend, color='red', linestyle='--', linewidth=2.5,
+                label=f'Trend Line (slope: {slope:.3f})')
+
+        # 그래프 꾸미기
+        ax.set_title("Morocco Annual Precipitation (1940-2025)", fontsize=15, pad=12)
+        ax.set_xlabel("Year", fontsize=12)
+        ax.set_ylabel("Precipitation (mm)", fontsize=12)
+        ax.grid(True, linestyle=':', alpha=0.5)
+        ax.legend(fontsize=11)
+
+        st.pyplot(fig)
+
+        # ===== 결과 해석 자동 출력 =====
+        if slope < 0:
+            st.info(f"📉 추세선의 기울기가 음수({slope:.3f})이므로, "
+                    f"모로코의 강수량은 장기적으로 **감소하는 추세**를 보입니다.")
+        else:
+            st.info(f"📈 추세선의 기울기가 양수({slope:.3f})이므로, "
+                    f"모로코의 강수량은 장기적으로 **증가하는 추세**를 보입니다.")
+
+        # ===== 원본 데이터 표 =====
+        with st.expander("📋 원본 데이터 보기"):
+            st.dataframe(morocco[['Year', 'Annual precipitation']].reset_index(drop=True))
 
 except FileNotFoundError:
-    st.error("`average-precipitation-per-year.csv` 파일이 존재하지 않습니다. 코드가 있는 폴더에 데이터 파일을 함께 넣어주세요.")
+    st.error("'average-precipitation-per-year.csv' 파일이 없어요. "
+             "코드와 같은 폴더에 데이터 파일을 넣어주세요.")
