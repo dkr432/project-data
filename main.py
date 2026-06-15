@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # ===== 페이지 기본 설정 =====
 st.set_page_config(page_title="모로코 강수량 분석", page_icon="🌧️", layout="wide")
 
 st.title("🌧️ 모로코(Morocco) 연간 강수량 추세 분석")
-st.write("1940년부터 2025년까지 모로코의 연간 강수량 변화와 추세선을 분석합니다.")
+st.write("1940년부터 2025년까지 모로코의 연간 강수량 변화와 추세선을 분석합니다. "
+         "**그래프 위에 마우스를 올리면** 해당 연도의 강수량을 확인할 수 있어요!")
 
 # ===== 데이터 불러오기 (캐싱) =====
 @st.cache_data
 def load_data():
-    df = pd.read_csv('average-precipitation-per-year.csv')
-    return df
+    return pd.read_csv('average-precipitation-per-year.csv')
 
 try:
     df = load_data()
@@ -45,25 +45,59 @@ try:
                     delta_color="inverse" if slope < 0 else "normal")
         col3.metric("전반부 대비 변화", f"{change_percent:.1f} %")
 
-        # ===== 그래프 그리기 =====
-        fig, ax = plt.subplots(figsize=(11, 5))
+        # ===== Plotly 인터랙티브 그래프 =====
+        fig = go.Figure()
 
-        # 실제 강수량 선그래프
-        ax.plot(years, precip, marker='o', markersize=4, linewidth=1.5,
-                color='#2E86C1', alpha=0.8, label='Annual Precipitation')
+        # 실제 강수량 선그래프 (커서 올리면 연도/강수량 표시)
+        fig.add_trace(go.Scatter(
+            x=years,
+            y=precip,
+            mode='lines+markers',
+            name='연간 강수량',
+            line=dict(color='#2E86C1', width=2),
+            marker=dict(size=6, color='#2E86C1'),
+            hovertemplate='<b>%{x}년</b><br>강수량: %{y:.1f} mm<extra></extra>'
+        ))
 
         # 추세선 (빨간 점선)
-        ax.plot(years, trend, color='red', linestyle='--', linewidth=2.5,
-                label=f'Trend Line (slope: {slope:.3f})')
+        fig.add_trace(go.Scatter(
+            x=years,
+            y=trend,
+            mode='lines',
+            name=f'추세선 (기울기: {slope:.3f})',
+            line=dict(color='red', width=3, dash='dash'),
+            hovertemplate='추세값: %{y:.1f} mm<extra></extra>'
+        ))
 
-        # 그래프 꾸미기
-        ax.set_title("Morocco Annual Precipitation (1940-2025)", fontsize=15, pad=12)
-        ax.set_xlabel("Year", fontsize=12)
-        ax.set_ylabel("Precipitation (mm)", fontsize=12)
-        ax.grid(True, linestyle=':', alpha=0.5)
-        ax.legend(fontsize=11)
+        # ===== 그래프 디자인 설정 =====
+        fig.update_layout(
+            title=dict(
+                text="모로코 연간 강수량 변화 (1940~2025)",
+                font=dict(size=22, color='#2C3E50'),
+                x=0.5  # 제목 가운데 정렬
+            ),
+            xaxis=dict(
+                title="연도",
+                showgrid=True,
+                gridcolor='rgba(200,200,200,0.3)'
+            ),
+            yaxis=dict(
+                title="강수량 (mm)",
+                showgrid=True,
+                gridcolor='rgba(200,200,200,0.3)'
+            ),
+            plot_bgcolor='white',
+            hovermode='x unified',  # 같은 연도의 값을 한 번에 표시
+            legend=dict(
+                yanchor="top", y=0.99,
+                xanchor="right", x=0.99,
+                bgcolor='rgba(255,255,255,0.8)'
+            ),
+            height=550
+        )
 
-        st.pyplot(fig)
+        # 스트림릿에 인터랙티브 그래프 출력
+        st.plotly_chart(fig, use_container_width=True)
 
         # ===== 결과 해석 자동 출력 =====
         if slope < 0:
