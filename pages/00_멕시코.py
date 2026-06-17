@@ -3,12 +3,17 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# ===== 페이지 기본 설정 =====
-st.set_page_config(page_title="호주 강수량 분석", page_icon="🌧️", layout="wide")
+# 페이지 제목
+st.title("🇲🇽 멕시코 관측소(035286) 연간 강수량 추세 분석")
 
-st.title("🇦🇺 호주 관측소(035286) 연간 강수량 추세 분석")
-st.write("일별 강수량 데이터를 **연도별 합계**로 묶어서 추세를 분석합니다. "
-         "**그래프에 마우스를 올리면** 자세한 값을 볼 수 있어요!")
+# 그래프 제목 (fig.update_layout 안의 title 부분)
+fig.update_layout(
+    title=dict(
+        text="멕시코 관측소(035286) 연간 강수량 추세",  # ← 여기를 멕시코로!
+        font=dict(size=22, color='#2C3E50'),
+        x=0.5, y=0.97
+    ),
+    ...
 
 # ===== 데이터 불러오기 =====
 @st.cache_data
