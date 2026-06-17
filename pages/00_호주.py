@@ -6,34 +6,32 @@ import plotly.graph_objects as go
 # ===== 페이지 기본 설정 =====
 st.set_page_config(page_title="호주 강수량 분석", page_icon="🌧️", layout="wide")
 
-st.title("🇦🇺 호주 관측소(024501) 연간 강수량 추세 분석")
+st.title("🇦🇺 호주 관측소(035286) 연간 강수량 추세 분석")
 st.write("일별 강수량 데이터를 **연도별 합계**로 묶어서 추세를 분석합니다. "
          "**그래프에 마우스를 올리면** 자세한 값을 볼 수 있어요!")
 
 # ===== 데이터 불러오기 =====
 @st.cache_data
 def load_data():
-    df = pd.read_csv('IDCJAC0009_024501_1800_Data.csv')
+    df = pd.read_csv('IDCJAC0009_035286_1800_Data.csv')
     return df
 
 try:
     df = load_data()
 
-    # ===== 컬럼명이 길어서 변수로 지정 =====
     rain_col = 'Rainfall amount (millimetres)'
 
     # ===== 연도별 합계 계산 (핵심!) =====
-    # 1) 강수량이 비어있는(NaN) 행은 제외
+    # 강수량이 비어있는(NaN) 행 제외
     df_clean = df.dropna(subset=[rain_col])
 
-    # 2) 연도별로 묶어서 강수량 합계 + 측정된 날짜 수 계산
+    # 연도별로 묶어서 합계 + 측정일 수 계산
     yearly = df_clean.groupby('Year').agg(
         total_rain=(rain_col, 'sum'),
         days_measured=(rain_col, 'count')
     ).reset_index()
 
-    # 3) 측정된 날이 너무 적은 해는 제외 (300일 이상만 신뢰)
-    #    → 옛날에는 측정이 빠진 날이 많아서 합계가 부정확할 수 있어요!
+    # 측정일이 300일 이상인 해만 사용 (정확도 위해)
     yearly = yearly[yearly['days_measured'] >= 300]
 
     if yearly.empty:
@@ -79,7 +77,7 @@ try:
         # ===== 그래프 디자인 설정 =====
         fig.update_layout(
             title=dict(
-                text="호주 관측소(024501) 연간 강수량 추세",
+                text="호주 관측소(035286) 연간 강수량 추세",
                 font=dict(size=22, color='#2C3E50'),
                 x=0.5, y=0.97
             ),
@@ -110,7 +108,7 @@ try:
             st.info(f"📈 추세선의 기울기가 양수({slope:.3f})이므로, "
                     f"이 지역의 강수량은 장기적으로 **증가하는 추세**를 보입니다.")
 
-        # ===== 원본(연도별) 데이터 표 =====
+        # ===== 연도별 데이터 표 =====
         with st.expander("📋 연도별 강수량 데이터 보기"):
             st.dataframe(yearly.rename(columns={
                 'Year': '연도',
@@ -119,5 +117,5 @@ try:
             }).reset_index(drop=True))
 
 except FileNotFoundError:
-    st.error("'IDCJAC0009_024501_1800_Data.csv' 파일이 없어요. "
+    st.error("'IDCJAC0009_035286_1800_Data.csv' 파일이 없어요. "
              "코드와 같은 폴더에 데이터 파일을 넣어주세요.")
