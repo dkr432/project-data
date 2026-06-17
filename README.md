@@ -69,14 +69,7 @@
   - 댐, 저수지 등으로 물을 저장하면 강수량이 적어도 물 확보 가능
   - 물 사용 효율, 정수 기술 등도 영향을 미침
 
-## 🚀 실행 방법
 
-```bash
-# 1. 저장소 복제
-git clone https://github.com/(본인 아이디)/(저장소 이름).git
-
-# 2. 필요한 라이브러리 설치
-pip install -r requirements.txt
 
 # 3. 스트림릿 실행
 streamlit run app.py
