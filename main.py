@@ -24,7 +24,6 @@ try:
     # ===== 모로코 데이터만 필터링 =====
     m_precip = precip_df[precip_df['Entity'] == 'Morocco'].sort_values('Year')
 
-    # 담수 자원 데이터의 컬럼명이 길어서 변수로 지정
     water_col = 'Renewable internal freshwater resources per capita (cubic meters)'
     m_water = water_df[water_df['Entity'] == 'Morocco'].sort_values('Year')
 
@@ -49,7 +48,6 @@ try:
         col2.metric("강수량 추세(기울기)", f"{slope:.3f} mm/년",
                     "감소 추세" if slope < 0 else "증가 추세",
                     delta_color="inverse" if slope < 0 else "normal")
-        # 담수 자원의 처음과 끝 비교
         water_change = (w_values[-1] - w_values[0]) / w_values[0] * 100
         col3.metric("1인당 담수 자원 변화", f"{water_change:.1f} %",
                     "감소" if water_change < 0 else "증가",
@@ -96,22 +94,26 @@ try:
             secondary_y=True
         )
 
-        # ===== 그래프 디자인 설정 =====
+        # ===== 그래프 디자인 설정 (수정됨!) =====
         fig.update_layout(
             title=dict(
                 text="모로코 강수량 vs 1인당 담수 자원",
                 font=dict(size=22, color='#2C3E50'),
-                x=0.5
+                x=0.5,
+                y=0.97
             ),
             plot_bgcolor='white',
             hovermode='x unified',
             legend=dict(
-                yanchor="top", y=1.15,
-                xanchor="center", x=0.5,
+                yanchor="top",
+                y=-0.15,
+                xanchor="center",
+                x=0.5,
                 orientation="h",
                 bgcolor='rgba(255,255,255,0.8)'
             ),
-            height=600
+            height=600,
+            margin=dict(t=80, b=100)
         )
 
         # X축 설정
