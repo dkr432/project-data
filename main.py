@@ -2,115 +2,149 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ===== 페이지 기본 설정 =====
-st.set_page_config(page_title="모로코 강수량 분석", page_icon="🌧️", layout="wide")
+st.set_page_config(page_title="모로코 물 분석", page_icon="🌧️", layout="wide")
 
-st.title("🌧️ 모로코(Morocco) 연간 강수량 추세 분석")
-st.write("1940년부터 2025년까지 모로코의 연간 강수량 변화와 추세선을 분석합니다. "
-         "**그래프 위에 마우스를 올리면** 해당 연도의 강수량을 확인할 수 있어요!")
+st.title("🇲🇦 모로코 강수량 & 1인당 담수 자원 분석")
+st.write("모로코의 **연간 강수량**과 **1인당 재생가능 담수 자원**을 함께 비교합니다. "
+         "**그래프에 마우스를 올리면** 자세한 값을 볼 수 있어요!")
 
-# ===== 데이터 불러오기 (캐싱) =====
+# ===== 데이터 불러오기 =====
 @st.cache_data
 def load_data():
-    return pd.read_csv('average-precipitation-per-year.csv')
+    precip = pd.read_csv('average-precipitation-per-year.csv')
+    water = pd.read_csv('renewable-water-resources-per-capita.csv')
+    return precip, water
 
 try:
-    df = load_data()
+    precip_df, water_df = load_data()
 
     # ===== 모로코 데이터만 필터링 =====
-    morocco = df[df['Entity'] == 'Morocco'].sort_values('Year')
+    m_precip = precip_df[precip_df['Entity'] == 'Morocco'].sort_values('Year')
 
-    if morocco.empty:
-        st.error("데이터에서 'Morocco'를 찾을 수 없어요. CSV 파일을 확인해주세요.")
+    # 담수 자원 데이터의 컬럼명이 길어서 변수로 지정
+    water_col = 'Renewable internal freshwater resources per capita (cubic meters)'
+    m_water = water_df[water_df['Entity'] == 'Morocco'].sort_values('Year')
+
+    if m_precip.empty or m_water.empty:
+        st.error("모로코 데이터를 찾을 수 없어요. CSV 파일을 확인해주세요.")
     else:
-        years = morocco['Year'].values
-        precip = morocco['Annual precipitation'].values
+        # 강수량 데이터
+        p_years = m_precip['Year'].values
+        p_values = m_precip['Annual precipitation'].values
 
-        # ===== 추세선 계산 (1차 직선) =====
-        slope, intercept = np.polyfit(years, precip, 1)
-        trend = slope * years + intercept
+        # 담수 자원 데이터
+        w_years = m_water['Year'].values
+        w_values = m_water[water_col].values
 
-        # ===== 앞/뒤 절반 평균 비교 =====
-        mid = years[len(years) // 2]
-        first_half = precip[years < mid].mean()
-        second_half = precip[years >= mid].mean()
-        change_percent = (second_half - first_half) / first_half * 100
+        # ===== 강수량 추세선 계산 =====
+        slope, intercept = np.polyfit(p_years, p_values, 1)
+        trend = slope * p_years + intercept
 
         # ===== 주요 지표 표시 =====
         col1, col2, col3 = st.columns(3)
-        col1.metric("전체 평균 강수량", f"{precip.mean():.1f} mm")
-        col2.metric("연간 변화율(기울기)", f"{slope:.3f} mm/년",
+        col1.metric("강수량 평균", f"{p_values.mean():.1f} mm")
+        col2.metric("강수량 추세(기울기)", f"{slope:.3f} mm/년",
                     "감소 추세" if slope < 0 else "증가 추세",
                     delta_color="inverse" if slope < 0 else "normal")
-        col3.metric("전반부 대비 변화", f"{change_percent:.1f} %")
+        # 담수 자원의 처음과 끝 비교
+        water_change = (w_values[-1] - w_values[0]) / w_values[0] * 100
+        col3.metric("1인당 담수 자원 변화", f"{water_change:.1f} %",
+                    "감소" if water_change < 0 else "증가",
+                    delta_color="inverse" if water_change < 0 else "normal")
 
-        # ===== Plotly 인터랙티브 그래프 =====
-        fig = go.Figure()
+        # ===== 이중 Y축 그래프 만들기 =====
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # 실제 강수량 선그래프 (커서 올리면 연도/강수량 표시)
-        fig.add_trace(go.Scatter(
-            x=years,
-            y=precip,
-            mode='lines+markers',
-            name='연간 강수량',
-            line=dict(color='#2E86C1', width=2),
-            marker=dict(size=6, color='#2E86C1'),
-            hovertemplate='<b>%{x}년</b><br>강수량: %{y:.1f} mm<extra></extra>'
-        ))
+        # (왼쪽 축) 강수량 선그래프
+        fig.add_trace(
+            go.Scatter(
+                x=p_years, y=p_values,
+                mode='lines+markers',
+                name='연간 강수량 (mm)',
+                line=dict(color='#2E86C1', width=2),
+                marker=dict(size=5),
+                hovertemplate='<b>%{x}년</b><br>강수량: %{y:.1f} mm<extra></extra>'
+            ),
+            secondary_y=False
+        )
 
-        # 추세선 (빨간 점선)
-        fig.add_trace(go.Scatter(
-            x=years,
-            y=trend,
-            mode='lines',
-            name=f'추세선 (기울기: {slope:.3f})',
-            line=dict(color='red', width=3, dash='dash'),
-            hovertemplate='추세값: %{y:.1f} mm<extra></extra>'
-        ))
+        # (왼쪽 축) 강수량 추세선
+        fig.add_trace(
+            go.Scatter(
+                x=p_years, y=trend,
+                mode='lines',
+                name=f'강수량 추세선 (기울기: {slope:.3f})',
+                line=dict(color='red', width=2.5, dash='dash'),
+                hovertemplate='추세값: %{y:.1f} mm<extra></extra>'
+            ),
+            secondary_y=False
+        )
+
+        # (오른쪽 축) 1인당 담수 자원 선그래프
+        fig.add_trace(
+            go.Scatter(
+                x=w_years, y=w_values,
+                mode='lines+markers',
+                name='1인당 담수 자원 (㎥)',
+                line=dict(color='#27AE60', width=2),
+                marker=dict(size=5),
+                hovertemplate='<b>%{x}년</b><br>담수 자원: %{y:.1f} ㎥<extra></extra>'
+            ),
+            secondary_y=True
+        )
 
         # ===== 그래프 디자인 설정 =====
         fig.update_layout(
             title=dict(
-                text="모로코 연간 강수량 변화 (1940~2025)",
+                text="모로코 강수량 vs 1인당 담수 자원",
                 font=dict(size=22, color='#2C3E50'),
-                x=0.5  # 제목 가운데 정렬
-            ),
-            xaxis=dict(
-                title="연도",
-                showgrid=True,
-                gridcolor='rgba(200,200,200,0.3)'
-            ),
-            yaxis=dict(
-                title="강수량 (mm)",
-                showgrid=True,
-                gridcolor='rgba(200,200,200,0.3)'
+                x=0.5
             ),
             plot_bgcolor='white',
-            hovermode='x unified',  # 같은 연도의 값을 한 번에 표시
+            hovermode='x unified',
             legend=dict(
-                yanchor="top", y=0.99,
-                xanchor="right", x=0.99,
+                yanchor="top", y=1.15,
+                xanchor="center", x=0.5,
+                orientation="h",
                 bgcolor='rgba(255,255,255,0.8)'
             ),
-            height=550
+            height=600
         )
 
-        # 스트림릿에 인터랙티브 그래프 출력
+        # X축 설정
+        fig.update_xaxes(title_text="연도", showgrid=True,
+                         gridcolor='rgba(200,200,200,0.3)')
+
+        # 왼쪽 Y축 (강수량) - 파란색
+        fig.update_yaxes(title_text="<b>강수량 (mm)</b>",
+                         color='#2E86C1', secondary_y=False,
+                         showgrid=True, gridcolor='rgba(200,200,200,0.3)')
+
+        # 오른쪽 Y축 (담수 자원) - 초록색
+        fig.update_yaxes(title_text="<b>1인당 담수 자원 (㎥)</b>",
+                         color='#27AE60', secondary_y=True)
+
+        # 그래프 출력
         st.plotly_chart(fig, use_container_width=True)
 
-        # ===== 결과 해석 자동 출력 =====
-        if slope < 0:
-            st.info(f"📉 추세선의 기울기가 음수({slope:.3f})이므로, "
-                    f"모로코의 강수량은 장기적으로 **감소하는 추세**를 보입니다.")
-        else:
-            st.info(f"📈 추세선의 기울기가 양수({slope:.3f})이므로, "
-                    f"모로코의 강수량은 장기적으로 **증가하는 추세**를 보입니다.")
+        # ===== 결과 해석 =====
+        st.info(f"""
+        📊 **분석 결과**
+        - 강수량은 기울기 {slope:.3f}로 **{'감소' if slope < 0 else '증가'}** 추세를 보입니다.
+        - 1인당 담수 자원은 {w_years[0]}년부터 {w_years[-1]}년까지 **{water_change:.1f}%** 변했습니다.
+        - 💡 두 그래프를 비교하며 강수량과 물 자원의 관계를 살펴보세요!
+        """)
 
         # ===== 원본 데이터 표 =====
         with st.expander("📋 원본 데이터 보기"):
-            st.dataframe(morocco[['Year', 'Annual precipitation']].reset_index(drop=True))
+            tab1, tab2 = st.tabs(["강수량", "1인당 담수 자원"])
+            with tab1:
+                st.dataframe(m_precip[['Year', 'Annual precipitation']].reset_index(drop=True))
+            with tab2:
+                st.dataframe(m_water[['Year', water_col]].reset_index(drop=True))
 
-except FileNotFoundError:
-    st.error("'average-precipitation-per-year.csv' 파일이 없어요. "
-             "코드와 같은 폴더에 데이터 파일을 넣어주세요.")
+except FileNotFoundError as e:
+    st.error(f"CSV 파일을 찾을 수 없어요. 두 데이터 파일이 코드와 같은 폴더에 있는지 확인해주세요.\n\n{e}")
