@@ -77,3 +77,4 @@
 1인당 담수 자원 변화:https://ourworldindata.org/
 모로코 강수량:https://ourworldindata.org/
 멕시코 강수량:https://www.bom.gov.au/jsp/ncc/cdio/weatherData/av?p_nccObsCode=136&p_display_type=dailyDataFile&p_startYear=&p_c=&p_stn_num=035286
+https://project-data-dkr432.streamlit.app/%EB%A9%95%EC%8B%9C%EC%BD%94
